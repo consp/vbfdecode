@@ -1,4 +1,5 @@
 import argparse
+import re
 from binascii import unhexlify, hexlify
 
 class VBF:
@@ -32,27 +33,35 @@ class VBF:
         header = header[header.find(b"sw_part_number"):]
         erase = False
         for line in header.split(b"\n"):
-            if b"sw_part_number" in line:
-                self.sw_part = line[line.find(b" = ")+3:line.find(b"\";")].replace(b" ", b"").replace(b"\"", b"").decode()
-            if b"sw_part_type" in line:
-                self.sw_part_type = line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode()
-            if b"network" in line:
-                self.network = line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode()
-            if b"ecu_address" in line:
-                self.ecu_address = int(line[line.find(b" = 0x")+5:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode(), 16)
-            if b"frame_format" in line:
-                self.frame_format = line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode()
-            if b"file_checksum" in line:
-                self.file_checksum = unhexlify(line[line.find(b" = 0x")+5:line.find(b";")].replace(b" ", b"").replace(b"\"", b""))
-            if b"erase = " in line or erase:
-                # dirty find
-                erase = True
-                locs = [i+2 for i in range(len(line)) if line.startswith(b'0x', i)]
-                for x in locs:
-                    self.erase.append(int(line[x:x+8], 16))
-            if erase:
-                if b"};" in line:
-                    erase = False
+            line = line.replace(b"\t", b"").replace(b"\r", b"")
+            if line.startswith(b"//"):
+                continue
+            try:
+                if b"sw_part_number" in line:
+                    self.sw_part = line[line.find(b" = ")+3:line.find(b"\";")].replace(b" ", b"").replace(b"\"", b"").decode()
+                if b"sw_part_type" in line:
+                    self.sw_part_type = line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode()
+                if b"network" in line:
+                    self.network = line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode()
+                if b"ecu_address" in line:
+                    self.ecu_address = int(line[line.find(b" = 0x")+5:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode(), 16)
+                if b"frame_format" in line:
+                    self.frame_format = line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode()
+                if b"file_checksum" in line:
+                    self.file_checksum = unhexlify(line[line.find(b" = 0x")+5:line.find(b";")].replace(b" ", b"").replace(b"\"", b""))
+                if b"erase = " in line or erase:
+                    # dirty find
+                    erase = True
+                    r = re.compile(r'{\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+)\s*}')
+                    m = r.search(line.decode())
+                    if m is not None:
+                        self.erase.append([m.group(1), m.group(2)])
+                if erase:
+                    if b"};" in line:
+                        erase = False
+            except Exception as e:
+                print(line)
+                raise
 
         binary = data[data.find(b"\n}")+2:]
         self.data = list()
@@ -74,7 +83,7 @@ class VBF:
         string = string + "Frame_format:%s\n" % (self.frame_format)
         string = string + "Erase frames:\n"
         for x in self.erase:
-            string = string + "0x%08X\n" % (x)
+            string = string + "0x%s (0x%s)\n" % (x[1], x[0])
         string = string + "Data blobs:\n"
         for i in self.data:
             string = string + "0x%08X\t%d\t %s\n" % (i[0], len(i[1]), hexlify(i[2]).decode())
