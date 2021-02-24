@@ -18,24 +18,23 @@ optional arguments:
 ```
 
 ## Result
-File is a ford ACM file.
+Example file is a ford ACM (radio) vbf file:
 
 ```
 python3 vbfdecode.py F1BT-14C044-HJ.vbf 
 VBF [v2.4]:
 Description: Strategy for ACU [Audio Control Unit]
 09.5MY Ford C344E L0CPlus
-Created on 2016/03/02
-Released by [email removed for privacy reasons] 
+Created on 2018/05/08
+Released by VTAMILSE@visteon.com
 Comment: c346e_ahu_ngl0cplus_mid_dab_c_prod
                   
-Software part: F1BT-14C044-HJ type: EXE
+Software part: F1BT-14C044-HN type: EXE
 Network: CAN_HS @ 0x727
 Frame_format:CAN_STANDARD
 Erase frames:
-0x00004000
-0x000BC000
+0x000BC000 (0x00004000)
 Data blobs:
-0x00004000	649720	 b6d8
-0x000B9000	27816	 5d14
+0x00004000	655800	 dd6a
+0x000B8000	27976	 38ae
 ```
