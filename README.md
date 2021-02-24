@@ -2,7 +2,7 @@
 
 Requires python 3.3+, tested on 3.6.
 VBF files are used for updating firmware on volvo/mazda and ford cars.
-Ford decoded to include the apperantly broken description as comments so it tries to find that as well. Software is as is (e.g. crappy, bad find command), ymmv.
+Ford decided to include the apperantly broken description as comments so it tries to find that as well. Software is as is (e.g. crappy, quick and dirty, bad find command), ymmv.
 
 ## Usage
 ```
