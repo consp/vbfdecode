@@ -7,8 +7,10 @@ class VBF:
     description = ""
     sw_part = ""
     sw_part_type = ""
-    network = ""
+    network = 0x00
+    data_format_identifier = 0x00
     ecu_address = 0x00
+    verification_block_start = 0x00
     frame_format = ""
     erase = []
     checksum = bytes()
@@ -43,8 +45,12 @@ class VBF:
                     self.sw_part_type = line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode()
                 if b"network" in line:
                     self.network = line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode()
+                if b"data_format_identifier" in line:
+                    self.data_format_identifier = int(line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode(), 16)
                 if b"ecu_address" in line:
                     self.ecu_address = int(line[line.find(b" = 0x")+5:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode(), 16)
+                if b"verification_block_start" in line:
+                    self.verification_block_start = int(line[line.find(b" = 0x")+5:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode(), 16)
                 if b"frame_format" in line:
                     self.frame_format = line[line.find(b" = ")+3:line.find(b";")].replace(b" ", b"").replace(b"\"", b"").decode()
                 if b"file_checksum" in line:
@@ -62,33 +68,44 @@ class VBF:
             except Exception as e:
                 print(line)
                 raise
-
-        binary = data[data.find(b"\n}")+2:]
+        binary_offset = data.find(b"\n}")+2
+        binary = data[binary_offset:]
         self.data = list()
         while len(binary) > 0:
             location = int.from_bytes(binary[:4], 'big')
             size = int.from_bytes(binary[4:8], 'big')
-            data = binary[8:size]
+            data = binary[8:8+size]
             checksum = binary[8+size:8+size+2]
             binary = binary[8+size+2:]
-            self.data.append((location, data, checksum))
-            #print("%s %d %s" % (hex(location), size, hexlify(checksum).decode()))
+            print("Offset: 0x{:X}, Location: 0x{:X}, Size: 0x{:X}, Data Offset: 0x{:X}".format(binary_offset,  location, size, binary_offset + 8))
+            binary_offset += 8+size+2
+            if location != self.verification_block_start:
+                self.data.append((location, data, checksum))
 
 
     def __str__(self):
-        string = "VBF [v%s]:\n" % (self.version)
-        string = string + "Description: %s" % (self.description)
-        string = string + "Software part: %s type: %s\n" % (self.sw_part, self.sw_part_type)
-        string = string + "Network: %s @ 0x%3X\n" % (self.network, self.ecu_address)
-        string = string + "Frame_format:%s\n" % (self.frame_format)
+        string = "VBF v{}\n".format(self.version)
+        string = string + "Description: {}".format(self.description)
+        string = string + "Software part: {} type: {}\n".format(self.sw_part, self.sw_part_type)
+        string = string + "Network: 0x{:08X}\n".format(self.network)
+        string = string + "Data Format Identifier: 0x{:08X}\n".format(self.data_format_identifier)
+        string = string + "ECU address: 0x{:08X}\n".format(self.ecu_address)
+        string = string + "Frame_format:{}\n".format(self.frame_format)
         string = string + "Erase frames:\n"
         for x in self.erase:
-            string = string + "0x%s (0x%s)\n" % (x[1], x[0])
+            string = string + "0x{} (0x{})\n".format(x[1], x[0])
         string = string + "Data blobs:\n"
         for i in self.data:
-            string = string + "0x%08X\t%d\t %s\n" % (i[0], len(i[1]), hexlify(i[2]).decode())
+            string = string + "0x{:08X}\t0x{:08X}\t {}\n".format(i[0], len(i[1]), hexlify(i[2]).decode())
         return string
 
+    def dump(self, dst):
+        for x in self.data:
+            print("{:08X}.bin ".format(x[0]))
+            filename = "{:08X}.bin".format(x[0]).replace(" ", "")
+            with open(dst + "/" + filename, "wb") as f:
+                f.write(x[1])
+            f.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="VBF somewhat decoder and blob extracter", usage="Try me with a filename.vbf")
@@ -107,5 +124,3 @@ if __name__ == "__main__":
                 print("%8X.bin " % (x[0]))
                 with open(("%8X.bin" % (x[0])).replace(" ", ""), "wb") as f:
                     f.write(x[1])
-
-
